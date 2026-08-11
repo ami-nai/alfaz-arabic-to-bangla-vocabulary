@@ -1,0 +1,6 @@
+{
+  "name": "Arabic to Bangla Vocabulary",
+  "description": "Interactive Arabic to Bangla vocabulary app with audio pronunciation, transliteration, categories, antonyms, and memory tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

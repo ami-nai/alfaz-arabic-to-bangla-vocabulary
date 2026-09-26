@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Word, ViewMode, MemorizedFilter } from './types/word';
+import { Word, ViewMode, MemorizedFilter, isVerbCategory } from './types/word';
 import {
   getStoredWords,
   fetchWordsFromSupabase,
@@ -27,6 +27,7 @@ function VocabularyApp() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [memorizedFilter, setMemorizedFilter] = useState<MemorizedFilter>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
 
@@ -118,18 +119,39 @@ function VocabularyApp() {
       if (memorizedFilter === 'memorized' && !w.isMemorized) return false;
       if (memorizedFilter === 'unmemorized' && w.isMemorized) return false;
 
+      // Category Filter
+      if (selectedCategory !== 'all' && (w.category || 'সাধারণ') !== selectedCategory) return false;
+
       // Search Filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesArabic = w.arabic.toLowerCase().includes(q);
         const matchesBangla = w.banglaMeaning.toLowerCase().includes(q);
+        const matchesVerbForm =
+          (w.masdar && w.masdar.toLowerCase().includes(q)) ||
+          (w.madi && w.madi.toLowerCase().includes(q)) ||
+          (w.mudari && w.mudari.toLowerCase().includes(q));
 
-        return matchesArabic || matchesBangla;
+        return matchesArabic || matchesBangla || matchesVerbForm;
       }
 
       return true;
     });
-  }, [words, memorizedFilter, searchQuery]);
+  }, [words, memorizedFilter, selectedCategory, searchQuery]);
+
+  // Available categories with counts (for the filter dropdown)
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    words.forEach((w) => {
+      const cat = w.category || 'সাধারণ';
+      counts.set(cat, (counts.get(cat) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'bn'));
+  }, [words]);
+
+  const showVerbColumns = isVerbCategory(selectedCategory);
 
   // Pagination: render in chunks, load more on scroll
   const paginatedWords = useMemo(
@@ -142,7 +164,7 @@ function VocabularyApp() {
   // Reset the visible window whenever the search/filter changes
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, memorizedFilter]);
+  }, [searchQuery, memorizedFilter, selectedCategory]);
 
   // Infinite scroll sentinel
   useEffect(() => {
@@ -264,6 +286,9 @@ function VocabularyApp() {
           onViewModeChange={setViewMode}
           memorizedFilter={memorizedFilter}
           onMemorizedFilterChange={setMemorizedFilter}
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
         />
 
         {/* Active View: Table vs Cards vs Flashcards */}
@@ -271,6 +296,7 @@ function VocabularyApp() {
           <WordTable
             words={paginatedWords}
             onToggleMemorized={handleToggleMemorized}
+            showVerbColumns={showVerbColumns}
           />
         )}
 

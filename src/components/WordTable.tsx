@@ -5,11 +5,15 @@ import { CheckCircle2, Circle, Copy, Check } from 'lucide-react';
 interface WordTableProps {
   words: Word[];
   onToggleMemorized: (id: string) => void;
+  showVerbColumns?: boolean;
 }
+
+const verbCell = (value?: string) => value && value.trim() ? value : '—';
 
 export const WordTable: React.FC<WordTableProps> = ({
   words,
   onToggleMemorized,
+  showVerbColumns = false,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -39,6 +43,16 @@ export const WordTable: React.FC<WordTableProps> = ({
               <th className="py-3.5 px-4 w-12 text-center">#</th>
               <th className="py-3.5 px-4 text-right sm:text-right font-bold text-[#5A5A40]">আরবি শব্দ</th>
               <th className="py-3.5 px-4">বাংলা অর্থ</th>
+              {showVerbColumns && (
+                <>
+                  <th className="py-3.5 px-4 text-right">বাব</th>
+                  <th className="py-3.5 px-4 text-right">মাসদার</th>
+                  <th className="py-3.5 px-4 text-right">মাদি</th>
+                  <th className="py-3.5 px-4 text-right">মুদারি</th>
+                  <th className="py-3.5 px-4 text-right">আমর</th>
+                  <th className="py-3.5 px-4 text-right">নাহি</th>
+                </>
+              )}
               <th className="py-3.5 px-4 text-center">মুখস্থ</th>
               <th className="py-3.5 px-4 text-right">কপি</th>
             </tr>
@@ -72,6 +86,18 @@ export const WordTable: React.FC<WordTableProps> = ({
                   <td className="py-4 px-4 font-bangla font-semibold text-[#3a332d] text-base">
                     {word.banglaMeaning}
                   </td>
+
+                  {/* Verb sarf columns (only when verb category is selected) */}
+                  {showVerbColumns && (
+                    <>
+                      <td className="py-4 px-4 text-right font-arabic text-xl text-[#3a332d]">{verbCell(word.bab)}</td>
+                      <td className="py-4 px-4 text-right font-arabic text-xl text-[#3a332d]">{verbCell(word.masdar)}</td>
+                      <td className="py-4 px-4 text-right font-arabic text-xl text-[#3a332d]">{verbCell(word.madi)}</td>
+                      <td className="py-4 px-4 text-right font-arabic text-xl text-[#3a332d]">{verbCell(word.mudari)}</td>
+                      <td className="py-4 px-4 text-right font-arabic text-xl text-[#3a332d]">{verbCell(word.amr)}</td>
+                      <td className="py-4 px-4 text-right font-arabic text-xl text-[#3a332d]">{verbCell(word.nahy)}</td>
+                    </>
+                  )}
 
                   {/* Memorized Toggle */}
                   <td className="py-4 px-4 text-center">

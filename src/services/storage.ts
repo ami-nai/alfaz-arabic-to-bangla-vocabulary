@@ -19,6 +19,12 @@ function mapRowToWord(row: Record<string, any>, isMemorizedOverride?: boolean): 
     createdAt: row.created_at ?? row.createdat ?? row.createdAt ?? new Date().toISOString(),
     exampleArabic: row.example_arabic ?? row.examplearabic ?? row.exampleArabic ?? '',
     exampleBangla: row.example_bangla ?? row.examplebangla ?? row.exampleBangla ?? '',
+    bab: row.bab ?? '',
+    masdar: row.masdar ?? '',
+    madi: row.madi ?? '',
+    mudari: row.mudari ?? '',
+    amr: row.amr ?? '',
+    nahy: row.nahy ?? '',
   };
 }
 
@@ -35,6 +41,12 @@ function mapWordToRow(word: Word): Record<string, any> {
     created_at: word.createdAt || new Date().toISOString(),
     example_arabic: word.exampleArabic || null,
     example_bangla: word.exampleBangla || null,
+    bab: word.bab || null,
+    masdar: word.masdar || null,
+    madi: word.madi || null,
+    mudari: word.mudari || null,
+    amr: word.amr || null,
+    nahy: word.nahy || null,
   };
 }
 
@@ -51,6 +63,12 @@ function mapWordToCamelRow(word: Word): Record<string, any> {
     createdAt: word.createdAt || new Date().toISOString(),
     exampleArabic: word.exampleArabic || null,
     exampleBangla: word.exampleBangla || null,
+    bab: word.bab || null,
+    masdar: word.masdar || null,
+    madi: word.madi || null,
+    mudari: word.mudari || null,
+    amr: word.amr || null,
+    nahy: word.nahy || null,
   };
 }
 

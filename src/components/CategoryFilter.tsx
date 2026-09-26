@@ -9,6 +9,9 @@ interface CategoryFilterProps {
   onViewModeChange: (mode: ViewMode) => void;
   memorizedFilter: MemorizedFilter;
   onMemorizedFilterChange: (filter: MemorizedFilter) => void;
+  categories: { name: string; total: number }[];
+  selectedCategory: string;
+  onCategoryChange: (category: string) => void;
 }
 
 export const CategoryFilter: React.FC<CategoryFilterProps> = ({
@@ -18,6 +21,9 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
   onViewModeChange,
   memorizedFilter,
   onMemorizedFilterChange,
+  categories,
+  selectedCategory,
+  onCategoryChange,
 }) => {
   return (
     <div className="bg-white p-4 rounded-2xl border border-[#e2d5c3] shadow-xs mb-6 space-y-4">
@@ -87,8 +93,28 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
         </div>
       </div>
 
-      {/* Bottom Filter Bar: Memorized Status Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3 pt-2 border-t border-[#f2e9de]">
+      {/* Bottom Filter Bar: Category Dropdown & Memorized Status Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-[#f2e9de]">
+
+        {/* Category Dropdown */}
+        <div className="flex items-center space-x-2 text-xs font-bangla">
+          <span className="text-[#7c7166] hidden lg:inline-flex items-center shrink-0">
+            <Filter className="w-3 h-3 mr-1" /> ক্যাটাগরি:
+          </span>
+          <select
+            value={selectedCategory}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            className="px-2.5 py-1.5 text-xs font-bangla font-medium text-[#3a332d] bg-[#f4ece1] border border-[#e2d5c3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40] transition-all cursor-pointer max-w-full"
+            aria-label="ক্যাটাগরি ফিল্টার"
+          >
+            <option value="all">সকল ক্যাটাগরি</option>
+            {categories.map((cat) => (
+              <option key={cat.name} value={cat.name}>
+                {cat.name} ({cat.total})
+              </option>
+            ))}
+          </select>
+        </div>
         
         {/* Memorized Status Filter Pills */}
         <div className="flex items-center space-x-1 shrink-0 bg-[#f4ece1] p-1 rounded-xl text-xs font-bangla border border-[#e2d5c3]">

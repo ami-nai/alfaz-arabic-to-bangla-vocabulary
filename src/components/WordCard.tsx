@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Word } from '../types/word';
+import { Word, isVerbCategory } from '../types/word';
 import { CheckCircle2, Circle, Copy, Check } from 'lucide-react';
 
 interface WordCardProps {
@@ -12,6 +12,15 @@ export const WordCard: React.FC<WordCardProps> = ({
   onToggleMemorized,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const verbDetail = (label: string, value?: string) => (
+    <div className="bg-[#fdfaf6] rounded-lg border border-[#e2d5c3] px-2 py-1.5 text-center">
+      <p className="text-[10px] font-bangla font-semibold text-[#7c7166]">{label}</p>
+      <p className="font-arabic text-lg font-bold text-[#3a332d] leading-relaxed">
+        {value && value.trim() ? value : '—'}
+      </p>
+    </div>
+  );
 
   const handleCopyArabic = (word: Word) => {
     navigator.clipboard.writeText(word.arabic);
@@ -73,6 +82,18 @@ export const WordCard: React.FC<WordCardProps> = ({
                   {word.banglaMeaning}
                 </p>
               </div>
+
+              {/* Verb sarf details (verb-category words only) */}
+              {isVerbCategory(word.category) && (
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {verbDetail('বাব', word.bab)}
+                  {verbDetail('মাসদার', word.masdar)}
+                  {verbDetail('মাদি', word.madi)}
+                  {verbDetail('মুদারি', word.mudari)}
+                  {verbDetail('আমর', word.amr)}
+                  {verbDetail('নাহি', word.nahy)}
+                </div>
+              )}
             </div>
 
             {/* Bottom Actions */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Word } from '../types/word';
+import { Word, isVerbCategory } from '../types/word';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, RotateCcw, ChevronLeft, ChevronRight, Shuffle, Sparkles, Circle } from 'lucide-react';
 
@@ -105,6 +105,12 @@ export const FlashcardMode: React.FC<FlashcardModeProps> = ({
                   <p className="font-arabic text-5xl font-bold leading-relaxed tracking-wide text-[#3a332d]">
                     {currentWord.arabic}
                   </p>
+                  {isVerbCategory(currentWord.category) && currentWord.masdar && currentWord.masdar.trim() && (
+                    <p className="font-arabic text-xl text-[#7c7166] leading-relaxed">
+                      <span className="font-bangla text-xs font-semibold text-[#7c7166]/80 block">মাসদার</span>
+                      {currentWord.masdar}
+                    </p>
+                  )}
                   <div className="pt-4 flex items-center justify-center text-xs font-bangla text-[#5A5A40] font-medium">
                     <Sparkles className="w-3.5 h-3.5 mr-1 animate-pulse" />
                     বাংলা অর্থ দেখতে ট্যাপ করুন
@@ -120,6 +126,28 @@ export const FlashcardMode: React.FC<FlashcardModeProps> = ({
                       {currentWord.banglaMeaning}
                     </p>
                   </div>
+                  {isVerbCategory(currentWord.category) && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 text-center">
+                      {[
+                        { label: 'বাব', value: currentWord.bab },
+                        { label: 'মাসদার', value: currentWord.masdar },
+                        { label: 'মাদি', value: currentWord.madi },
+                        { label: 'মুদারি', value: currentWord.mudari },
+                        { label: 'আমর', value: currentWord.amr },
+                        { label: 'নাহি', value: currentWord.nahy },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5"
+                        >
+                          <p className="text-[10px] font-bangla font-semibold text-[#ede4d8]/70">{item.label}</p>
+                          <p className="font-arabic text-lg font-bold text-white leading-relaxed">
+                            {item.value && item.value.trim() ? item.value : '—'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>

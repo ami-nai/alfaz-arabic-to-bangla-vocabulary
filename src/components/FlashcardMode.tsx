@@ -102,13 +102,13 @@ export const FlashcardMode: React.FC<FlashcardModeProps> = ({
             <div className="my-auto py-6 space-y-4">
               {!isFlipped ? (
                 <>
-                  <p className="font-arabic text-5xl font-bold leading-relaxed tracking-wide text-[#3a332d]">
-                    {currentWord.arabic}
-                  </p>
-                  {isVerbCategory(currentWord.category) && currentWord.masdar && currentWord.masdar.trim() && (
-                    <p className="font-arabic text-xl text-[#7c7166] leading-relaxed">
-                      <span className="font-bangla text-xs font-semibold text-[#7c7166]/80 block">মাসদার</span>
+                  {isVerbCategory(currentWord.category) && currentWord.masdar && currentWord.masdar.trim() ? (
+                    <p className="font-arabic text-5xl font-bold leading-relaxed tracking-wide text-[#3a332d]">
                       {currentWord.masdar}
+                    </p>
+                  ) : (
+                    <p className="font-arabic text-5xl font-bold leading-relaxed tracking-wide text-[#3a332d]">
+                      {currentWord.arabic}
                     </p>
                   )}
                   <div className="pt-4 flex items-center justify-center text-xs font-bangla text-[#5A5A40] font-medium">

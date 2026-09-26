@@ -117,30 +117,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: window.location.origin,
-          skipBrowserRedirect: true,
         },
       });
 
       if (error) {
         return { error: error.message };
-      }
-
-      if (data?.url) {
-        // Break out of iframe to prevent Google X-Frame-Options 403 errors
-        const isIframe = window.self !== window.top;
-        if (isIframe) {
-          try {
-            window.top!.location.href = data.url;
-          } catch {
-            window.open(data.url, '_blank');
-          }
-        } else {
-          window.location.href = data.url;
-        }
       }
 
       return { error: null };

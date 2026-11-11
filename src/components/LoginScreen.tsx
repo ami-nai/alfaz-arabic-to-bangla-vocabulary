@@ -77,13 +77,14 @@ export const LoginScreen: React.FC = () => {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={!isConfigured || googleLoading}
-              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-lg text-sm shadow-2xs transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+              className="w-full min-h-14 py-3.5 px-5 bg-[#2C3E2E] hover:bg-[#3d543f] border border-[#2C3E2E] text-white font-bold rounded-xl text-base shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#5A5A40]/30 focus-visible:ring-offset-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {googleLoading ? (
                 <span role="status">গুগলে নিয়ে যাওয়া হচ্ছে…</span>
               ) : (
                 <>
-                  <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white" aria-hidden="true">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -101,7 +102,8 @@ export const LoginScreen: React.FC = () => {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>গুগল দিয়ে প্রবেশ করুন (Continue with Google)</span>
+                  </span>
+                  <span>গুগল দিয়ে শুরু করুন</span>
                 </>
               )}
             </button>

@@ -13,7 +13,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "node tests/storage.test.mjs"
+    "test": "node tests/storage.test.mjs && node --import tsx tests/search.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.0",

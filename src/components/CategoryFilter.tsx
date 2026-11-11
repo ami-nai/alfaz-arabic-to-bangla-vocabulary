@@ -38,12 +38,14 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="আরবি বা বাংলা অর্থ দিয়ে খুঁজুন..."
+            placeholder="আরবি, বাংলা অর্থ বা উচ্চারণ দিয়ে খুঁজুন..."
+            aria-label="শব্দ খুঁজুন"
             className="w-full pl-10 pr-10 py-2.5 text-sm font-bangla border border-[#e2d5c3] rounded-xl bg-[#fdfaf6] text-[#3a332d] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40] transition-all placeholder:text-[#7c7166]/60"
           />
           {searchQuery && (
             <button
               onClick={() => onSearchChange('')}
+              aria-label="অনুসন্ধান মুছুন"
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#7c7166] hover:text-[#3a332d] rounded-full hover:bg-[#ede4d8]"
             >
               <X className="w-3.5 h-3.5" />

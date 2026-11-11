@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createWordSearchIndex, createSearchMatcher } from './lib/search';
 import { Word, ViewMode, MemorizedFilter, isVerbCategory } from './types/word';
 import {
   getStoredWords,
@@ -105,9 +106,15 @@ function VocabularyApp() {
     }
   };
 
-  // Compute Filtered Words
+  const searchableWords = useMemo(
+    () => words.map(word => ({ word, fields: createWordSearchIndex(word) })),
+    [words]
+  );
+
+  // Search the full dictionary before slicing the visible page.
   const filteredWords = useMemo(() => {
-    return words.filter((w) => {
+    const matchesSearch = createSearchMatcher(searchQuery);
+    return searchableWords.filter(({ word: w, fields }) => {
       // Memorized Status Filter
       if (memorizedFilter === 'memorized' && !w.isMemorized) return false;
       if (memorizedFilter === 'unmemorized' && w.isMemorized) return false;
@@ -115,22 +122,9 @@ function VocabularyApp() {
       // Category Filter
       if (selectedCategory !== 'all' && (w.category || 'সাধারণ') !== selectedCategory) return false;
 
-      // Search Filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesArabic = w.arabic.toLowerCase().includes(q);
-        const matchesBangla = w.banglaMeaning.toLowerCase().includes(q);
-        const matchesVerbForm =
-          (w.masdar && w.masdar.toLowerCase().includes(q)) ||
-          (w.madi && w.madi.toLowerCase().includes(q)) ||
-          (w.mudari && w.mudari.toLowerCase().includes(q));
-
-        return matchesArabic || matchesBangla || matchesVerbForm;
-      }
-
-      return true;
-    });
-  }, [words, memorizedFilter, selectedCategory, searchQuery]);
+      return matchesSearch(fields);
+    }).map(({ word }) => word);
+  }, [searchableWords, memorizedFilter, selectedCategory, searchQuery]);
 
   // Available categories with counts (for the filter dropdown)
   const categories = useMemo(() => {

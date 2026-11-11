@@ -23,6 +23,9 @@ jobs:
       - name: Lint / typecheck
         run: bun run lint
 
+      - name: Regression tests
+        run: npm test
+
       - name: Build
         run: bun run build
         env:

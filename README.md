@@ -5,12 +5,12 @@
 **An interactive Arabic-to-Bangla vocabulary learning app with pronunciation, antonyms, categories, flashcards, and per-user memorization tracking.**
 
 [![CI](https://github.com/ami-nai/alfaz-arabic-to-bangla-vocabulary/actions/workflows/ci.yml/badge.svg)](https://github.com/ami-nai/alfaz-arabic-to-bangla-vocabulary/actions/workflows/ci.yml)
-[![Deployed on Railway](https://img.shields.io/badge/deployed-Railway-0B0D0E?logo=railway&logoColor=white)](https://alfaz.up.railway.app)
+[![Deployed on Vercel](https://img.shields.io/badge/deployed-Vercel-black?logo=vercel&logoColor=white)](https://alfaz-pi.vercel.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](#license)
 
-**Live app:** <https://alfaz.up.railway.app>
+**Live app:** <https://alfaz-pi.vercel.app>
 
 </div>
 
@@ -29,7 +29,6 @@
 - [Available Scripts](#available-scripts)
 - [Project Structure](#project-structure)
 - [Database Schema](#database-schema)
-- [AI Enrichment](#ai-enrichment)
 - [CI/CD](#cicd)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
@@ -49,7 +48,6 @@
 - **Search & filters** — live search across Arabic and Bangla, plus memorized-status filtering.
 - **Infinite scroll** — large lists load incrementally as you scroll instead of rendering all at once.
 - **New-words sync** — detects newly added words and shows a banner so users can pull the latest dataset while preserving their progress.
-- **AI-assisted word enrichment** *(optional)* — a server-side Gemini endpoint auto-generates detailed vocabulary entries for new words.
 - **Import / Export** — backup or migrate your vocabulary as JSON.
 - **Bilingual typography** — Amiri & Scheherazade New (Arabic), Hind Siliguri (Bangla), plus a warm, responsive Tailwind UI.
 
@@ -61,10 +59,9 @@
 |---|---|
 | **Frontend** | React 19, TypeScript, Vite 6, Tailwind CSS 4, Motion (Framer Motion), lucide-react |
 | **Backend** | Express 4 (Node), Esbuild server bundle |
-| **AI** | Google Gemini (`@google/genai`) — model fallback chain |
 | **Database / Auth** | Supabase (Postgres + Auth + REST) |
 | **Runtime / Tooling** | Bun (install & dev), Node.js 22+ (production), tsx |
-| **CI/CD** | GitHub Actions (CI), Railway (deploy) |
+| **CI/CD** | GitHub Actions (CI), Vercel (deploy) |
 
 ---
 
@@ -82,7 +79,6 @@
 │  • Serves built SPA (prod)     │
 │  • Vite middleware (dev)       │
 │  • GET  /api/health            │
-│  • POST /api/ai/enrich-word    │   → Gemini API (server-side, key hidden)
 └───────┬───────────────┬───────┘
         │               │
         ▼               ▼
@@ -96,7 +92,6 @@
 Key design decisions:
 
 - **Data flow:** the app loads words into client state, caches them per-user in `localStorage` for instant rendering, then syncs with Supabase. Memorization lives in a `user_word_progress` junction table keyed by `(user_id, word_id)`.
-- **Server proxying:** Gemini API calls go through the Express server so the API key is never exposed to the browser.
 - **Progressive rendering:** lists use client-side infinite scroll — all data is loaded for search/filter correctness, but only a window of rows is rendered at a time.
 
 ---
@@ -107,7 +102,6 @@ Key design decisions:
 
 - **Node.js 22+** (or **Bun 1.x**, recommended)
 - A **Supabase** project (for auth + database)
-- *(Optional)* A **Gemini API key** for AI enrichment
 
 ### Installation
 
@@ -133,7 +127,6 @@ cp .env.example .env.local
 |---|---|---|---|
 | `VITE_SUPABASE_URL` | ✅ (for auth/data) | Client (build-time) | Your Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | ✅ (for auth/data) | Client (build-time) | Supabase anon/publishable key |
-| `GEMINI_API_KEY` | ⛔ Optional | Server (runtime) | Gemini key for AI word enrichment |
 | `APP_URL` | ⛔ Optional | Server | Public URL of the deployed app |
 | `PORT` | ⛔ Optional | Server | Port override (platforms inject this) |
 
@@ -169,7 +162,7 @@ Open <http://localhost:3000>.
 ## Project Structure
 
 ```
-├── server.ts                    # Express server + Gemini proxy + SPA serving
+├── server.ts                    # Express server + SPA serving
 ├── railway.json                 # Railway build/deploy config
 ├── vite.config.ts               # Vite + Tailwind + React config
 ├── tsconfig.json
@@ -237,21 +230,13 @@ Unique constraint: `(user_id, word_id)`.
 
 ---
 
-## AI Enrichment
-
-`POST /api/ai/enrich-word` accepts `{ "arabicWord", "banglaMeaning" }` and returns a structured JSON vocabulary entry (Arabic with harakat, Bengali transliteration, meaning, antonym, category, and example sentences).
-
-- Uses a model fallback chain: `gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`.
-- Returns user-friendly Bangla error messages when the quota is exhausted or the service is unreachable — the form can still be filled in manually.
-
----
 
 ## CI/CD
 
 | Stage | Tool | What it does |
 |---|---|---|
 | **CI** | GitHub Actions (`.github/workflows/ci.yml`) | On push/PR: install → lint/typecheck → production build |
-| **CD** | Railway | On push to `main`: pulls the repo, builds from `railway.json`, deploys to `https://alfaz.up.railway.app` |
+| **CD** | Vercel | Builds the frontend using `vercel.json` |
 
 The CI workflow needs these repository **secrets** to build with real values (optional — build passes without them):
 
@@ -266,7 +251,44 @@ Add them at GitHub → **Settings → Secrets and variables → Actions**.
 
 ## Deployment
 
-### Railway (current setup)
+### Vercel (current)
+
+The live app is https://alfaz-pi.vercel.app. Vercel uses `vercel.json` to build
+and serve the static frontend. Set the Supabase `VITE_*` variables before building.
+Add this domain to Supabase Auth's Site URL and redirect allowlist. The Express
+server and `/api/health` are only used for local development or Node hosting.
+AI enrichment has been removed; remove any old `GEMINI_API_KEY` from hosting
+settings and revoke that unused key in the provider dashboard.
+
+### Database access control (required before release)
+
+Apply `supabase/migrations/202611120001_access_control.sql` in the Supabase SQL
+editor as the database owner. This enables row-level security, restricts progress
+to the owning account, and makes shared words/announcements read-only for app
+users. Existing permissive policies cannot bypass the new restrictive guards.
+Maintain dictionary content through the dashboard or a trusted service role.
+The migration does not change vocabulary or progress data.
+
+This migration has to be applied to your actual project; a successful frontend
+build does not apply it. Verify with two test accounts that each can create,
+read, update and reset its own progress, cannot read/change the other's progress,
+and cannot write to `words` or `app_announcements`. Also check anonymous access
+is denied. The progress table must have a unique `(user_id, word_id)` constraint
+and the columns documented below.
+
+### Existing progress behavior
+
+Progress changes now wait for server confirmation. If saving fails, the previous
+state stays visible and an error asks the user to retry. Cached words remain
+readable offline, but changing progress and resetting require a connection.
+A failed progress fetch preserves the cache. Account changes clear the old UI,
+and all dictionary/progress pages are fetched instead of only the first page.
+
+Run `npm test`, `npm run lint`, and `npm run build` before deployment. Tests mock
+the database to cover save/reset failures, account isolation and pagination;
+they do not replace verifying deployed Supabase policies and login flows.
+
+### Railway (optional Node hosting)
 
 1. Create a project in Railway and **Deploy from GitHub repo** (`ami-nai/alfaz-arabic-to-bangla-vocabulary`).
 2. Railway uses `railway.json` (Nixpacks): builds with `npm run build`, starts with `npm start`, health-checks `/api/health`.
@@ -276,7 +298,6 @@ Add them at GitHub → **Settings → Secrets and variables → Actions**.
 NODE_ENV=production
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
-GEMINI_API_KEY=...          # optional
 ```
 
 4. Generate a domain under **Settings → Networking**.
@@ -297,7 +318,6 @@ Any Node.js host that supports a start command works, e.g. Render, Fly.io, or Cl
 | `Blocked request. This host is not allowed` | Server must run with `NODE_ENV` **not** equal to `development` in production |
 | Nixpacks tries Node 18 | `package.json` pins `"engines": { "node": "22" }` |
 | Words don't appear | Verify Supabase URL/anon key are set **before** building; check the `words` table exists and is queryable |
-| Gemini enrich returns an error | `GEMINI_API_KEY` missing or daily quota exhausted — the UI falls back to manual entry |
 
 ---
 
@@ -306,7 +326,6 @@ Any Node.js host that supports a start command works, e.g. Render, Fly.io, or Cl
 - [ ] Custom Google OAuth client (hide the Supabase-branded consent screen)
 - [ ] Sound / pronunciation playback
 - [ ] Spaced-repetition scheduling for flashcards
-- [ ] Admin UI for adding words with AI enrichment
 - [ ] Shareable progress / streaks
 - [ ] PWA support (offline install)
 
@@ -331,6 +350,6 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 <div align="center">
 
-Built by **Md. Shahriar Alam** · Powered by React, Supabase, Gemini & Railway
+Built by **Md. Shahriar Alam** · Powered by React, Supabase & Vercel
 
 </div>

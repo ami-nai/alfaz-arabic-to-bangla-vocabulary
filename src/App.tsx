@@ -23,6 +23,11 @@ function VocabularyApp() {
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id;
 
+  const [busy, setBusy] = useState(true);
+  const busyRef = useRef(true);
+  const [operationError, setOperationError] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const [words, setWords] = useState<Word[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -54,60 +59,48 @@ function VocabularyApp() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Initial & User Change Load
+  // Keep cached content on failure, and ignore requests from an unmounted account.
   useEffect(() => {
-    if (authLoading) return;
-
-    if (!userId) {
-      setWords([]);
-      setPendingSyncNotice({ hasNew: false, newCount: 0 });
-      return;
-    }
-
-    // 1. Immediate local cache load for logged-in user
+    if (authLoading || !userId) return;
+    let cancelled = false;
+    busyRef.current = true;
+    setBusy(true);
+    setOperationError('');
     const localWords = getStoredWords(userId);
     setWords(localWords);
-
-    if (localWords.length === 0) {
-      // If local cache is empty, automatically load words from Supabase without showing new words banner
-      fetchWordsFromSupabase(userId).then((remoteWords) => {
-        if (remoteWords && remoteWords.length > 0) {
-          setWords(remoteWords);
-        }
-        setPendingSyncNotice({ hasNew: false, newCount: 0 });
-      });
-    } else {
-      // 2. Check if Supabase has new words added (count > localWords.length)
-      checkNewWordsAvailable(localWords.length, userId).then((res) => {
-        if (res.hasNew) {
-          setPendingSyncNotice({
-            hasNew: true,
-            newCount: res.newCount,
-            message: res.announcementMessage,
-          });
+    (async () => {
+      try {
+        const notice = await checkNewWordsAvailable(localWords.length, userId);
+        if (cancelled) return;
+        if (localWords.length && notice.hasNew) {
+          setPendingSyncNotice({ hasNew: true, newCount: notice.newCount, message: notice.announcementMessage });
         } else {
-          setPendingSyncNotice({ hasNew: false, newCount: 0 });
-          // Quietly refresh remote user progress
-          fetchWordsFromSupabase(userId).then((remoteWords) => {
-            if (remoteWords && remoteWords.length > 0) {
-              setWords(remoteWords);
-            }
-          });
+          const remote = await fetchWordsFromSupabase(userId);
+          if (!cancelled) setWords(remote);
         }
-      });
-    }
-  }, [userId, authLoading]);
+      } catch {
+        if (!cancelled) setOperationError('তথ্য লোড হয়নি। আগের সংরক্ষিত তথ্য দেখানো হচ্ছে। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।');
+      } finally {
+        if (!cancelled) { busyRef.current = false; setBusy(false); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, authLoading, reloadKey]);
 
-  // Handle Sync New Words Action Box Click
   const handleSyncNewWords = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setIsSyncing(true);
+    setOperationError('');
     try {
-      const updatedRemoteWords = await syncNewWordsFromSupabase(userId);
-      setWords(updatedRemoteWords);
+      setWords(await syncNewWordsFromSupabase(userId));
       setPendingSyncNotice({ hasNew: false, newCount: 0 });
-    } catch (err) {
-      console.error('Error syncing new words:', err);
+    } catch {
+      setOperationError('আপডেট হয়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।');
     } finally {
+      busyRef.current = false;
+      setBusy(false);
       setIsSyncing(false);
     }
   };
@@ -180,7 +173,7 @@ function VocabularyApp() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, loadMore, visibleCount]);
+  }, [hasMore, loadMore, visibleCount, viewMode]);
 
   // Stats
   const totalCount = words.length;
@@ -188,26 +181,44 @@ function VocabularyApp() {
   const unmemorizedCount = totalCount - memorizedCount;
 
   // Handlers
-  const handleToggleMemorized = (id: string) => {
-    const updated = toggleMemorized(id, userId);
-    setWords(updated);
+  const handleToggleMemorized = async (id: string) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setOperationError('');
+    try {
+      setWords(await toggleMemorized(id, userId));
+    } catch {
+      setOperationError('অগ্রগতি সংরক্ষণ হয়নি। আগের অবস্থা রাখা হয়েছে। সংযোগ পরীক্ষা করে শব্দটিতে আবার চাপুন।');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   };
 
   const handleOpenResetModal = () => {
+    if (busyRef.current) return;
+    setResetError('');
     setShowResetConfirm(true);
   };
 
   const handleConfirmReset = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setIsResetting(true);
+    setResetError('');
     try {
-      const reset = await resetToInitial(userId);
-      setWords(reset);
+      setWords(await resetToInitial(userId));
       setSearchQuery('');
-    } catch (err) {
-      console.error('Reset error:', err);
-    } finally {
-      setIsResetting(false);
       setShowResetConfirm(false);
+      setOperationError('');
+    } catch {
+      setResetError('রিসেট নিশ্চিত করা যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+      setIsResetting(false);
     }
   };
 
@@ -259,6 +270,14 @@ function VocabularyApp() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div aria-live="polite" className="font-bangla text-sm mb-3">
+          {busy && <p role="status">তথ্য লোড বা সংরক্ষণ হচ্ছে…</p>}
+          {operationError && <div role="alert" className="rounded-xl bg-amber-50 text-amber-900 p-3">
+            <p>{operationError}</p>
+            <button disabled={busy} onClick={() => setReloadKey(key => key + 1)} className="underline mt-2 disabled:opacity-50">আবার লোড করুন</button>
+          </div>}
+        </div>
+        <fieldset disabled={busy} aria-busy={busy} className="min-w-0">
         
         {/* ACTION BOX: Admin Broadcast / New Words Notification Banner */}
         {pendingSyncNotice.hasNew && (
@@ -321,6 +340,7 @@ function VocabularyApp() {
           </div>
         )}
 
+        </fieldset>
       </main>
 
       {/* Scroll-to-top floating button */}
@@ -350,6 +370,7 @@ function VocabularyApp() {
               আপনি কি আপনার চিহ্নিত মুখস্থ করার তথ্য রিসেট করতে চান? আপনার চিহ্নিত সব শব্দের অগ্রগতি মুছে গিয়ে ০% এ ফিরে যাবে।
             </p>
 
+            {resetError && <p role="alert" className="text-sm text-rose-700 mb-4">{resetError}</p>}
             <div className="flex items-center justify-end space-x-3">
               <button
                 onClick={() => setShowResetConfirm(false)}
@@ -398,10 +419,15 @@ function VocabularyApp() {
   );
 }
 
+function AccountApp() {
+  const { user } = useAuth();
+  return <VocabularyApp key={user?.id ?? 'signed-out'} />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <VocabularyApp />
+      <AccountApp />
     </AuthProvider>
   );
 }

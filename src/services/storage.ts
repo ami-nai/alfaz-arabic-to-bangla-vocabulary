@@ -77,14 +77,7 @@ export const getStoredWords = (userId?: string): Word[] => {
   const key = userId ? `${STORAGE_KEY}_user_${userId}` : STORAGE_KEY;
   try {
     const data = localStorage.getItem(key);
-    if (!data) {
-      // Fallback to base key if user key not set
-      const baseData = localStorage.getItem(STORAGE_KEY);
-      if (baseData) {
-        return JSON.parse(baseData);
-      }
-      return [];
-    }
+    if (!data) return [];
     const parsed = JSON.parse(data);
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
@@ -103,67 +96,33 @@ export const saveWords = (words: Word[], userId?: string): void => {
   }
 };
 
-// Fetch words asynchronously from Supabase, applying per-user word progress if logged in
+// Read every page; the API may cap each response even when no limit is supplied.
+async function readAllPages(query: (from: number, to: number) => PromiseLike<any>) {
+  const rows: Record<string, any>[] = [];
+  for (let from = 0; ; ) {
+    const { data, error } = await query(from, from + 499);
+    if (error) throw error;
+    if (!data?.length) return rows;
+    rows.push(...data);
+    from += data.length;
+  }
+}
+
+// Errors propagate to the UI; never replace a valid cache with incomplete progress.
 export const fetchWordsFromSupabase = async (userId?: string): Promise<Word[]> => {
-  if (!isSupabaseConfigured || !supabase) {
-    return getStoredWords(userId);
+  if (!isSupabaseConfigured || !supabase || !userId) {
+    throw new Error('অ্যাকাউন্ট সার্ভিসের সাথে সংযোগ নেই।');
   }
-
-  try {
-    // 1. Fetch global dictionary of words
-    const { data: wordsData, error: wordsError } = await supabase
-      .from('words')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (wordsError) {
-      console.warn('Supabase words fetch notice:', wordsError.message);
-      return getStoredWords(userId);
-    }
-
-    if (!wordsData || wordsData.length === 0) {
-      return getStoredWords(userId);
-    }
-
-    // 2. Fetch user_word_progress if userId is provided
-    let userProgressMap = new Map<string, boolean>();
-    if (userId) {
-      try {
-        const { data: progressData, error: progressError } = await supabase
-          .from('user_word_progress')
-          .select('word_id, status, is_memorized')
-          .eq('user_id', userId);
-
-        if (!progressError && progressData) {
-          progressData.forEach((item: any) => {
-            const wordId = String(item.word_id);
-            const isMemo =
-              item.status === 'memorized' ||
-              Boolean(item.is_memorized);
-            userProgressMap.set(wordId, isMemo);
-          });
-        }
-      } catch (pErr) {
-        console.warn('user_word_progress table fetch fallback notice:', pErr);
-      }
-    }
-
-    // 3. Map words with per-user memorized status
-    const mappedWords = wordsData.map((row) => {
-      const wordId = String(row.id);
-      const isMemorizedForUser = userId && userProgressMap.has(wordId)
-        ? userProgressMap.get(wordId)
-        : undefined;
-
-      return mapRowToWord(row, isMemorizedForUser);
-    });
-
-    saveWords(mappedWords, userId);
-    return mappedWords;
-  } catch (err) {
-    console.error('Error fetching words from Supabase:', err);
-    return getStoredWords(userId);
-  }
+  const wordsData = await readAllPages((from, to) => supabase
+    .from('words').select('*').order('id').range(from, to));
+  const progressData = await readAllPages((from, to) => supabase
+    .from('user_word_progress').select('word_id, status, is_memorized')
+    .eq('user_id', userId).order('word_id').range(from, to));
+  const progress = new Map(progressData.map(row => [String(row.word_id),
+    row.status === 'memorized' || Boolean(row.is_memorized)]));
+  const words = wordsData.map(row => mapRowToWord(row, progress.get(String(row.id)) ?? false));
+  saveWords(words, userId);
+  return words;
 };
 
 // Add a new word (saves locally & syncs with Supabase)
@@ -236,50 +195,26 @@ export const updateWord = (id: string, updates: Partial<Word>, userId?: string):
   return updated;
 };
 
-// Toggle memorized status per-user (updates locally & syncs with user_word_progress in Supabase)
-export const toggleMemorized = (id: string, userId?: string): Word[] => {
-  const current = getStoredWords(userId);
-  let targetWord: Word | undefined;
-  const updated = current.map((item) => {
-    if (item.id === id) {
-      targetWord = { ...item, isMemorized: !item.isMemorized };
-      return targetWord;
-    }
-    return item;
-  });
-  saveWords(updated, userId);
-
-  if (isSupabaseConfigured && supabase && targetWord) {
-    const isMemo = targetWord.isMemorized;
-    const statusStr = isMemo ? 'memorized' : 'learning';
-
-    (async () => {
-      try {
-        // 1. Primary: Save to user_word_progress junction table if logged in
-        if (userId) {
-          const { error: pErr } = await supabase.from('user_word_progress').upsert(
-            [
-              {
-                user_id: userId,
-                word_id: id,
-                status: statusStr,
-                is_memorized: isMemo,
-                last_reviewed_at: new Date().toISOString(),
-              },
-            ],
-            { onConflict: 'user_id,word_id' }
-          );
-
-          if (pErr) {
-            console.warn('user_word_progress upsert fallback:', pErr.message);
-          }
-        }
-      } catch (err) {
-        console.error('Supabase toggleMemorized error:', err);
-      }
-    })();
+// Only report success after the database confirms the saved row.
+export const toggleMemorized = async (id: string, userId?: string): Promise<Word[]> => {
+  if (!isSupabaseConfigured || !supabase || !userId) {
+    throw new Error('অগ্রগতি সংরক্ষণ করতে লগইন ও ইন্টারনেট সংযোগ প্রয়োজন।');
   }
-
+  const current = getStoredWords(userId);
+  const target = current.find(word => word.id === id);
+  if (!target) throw new Error('শব্দটি পাওয়া যায়নি। আবার লোড করুন।');
+  const isMemorized = !target.isMemorized;
+  const { data, error } = await supabase.from('user_word_progress').upsert({
+    user_id: userId,
+    word_id: id,
+    status: isMemorized ? 'memorized' : 'learning',
+    is_memorized: isMemorized,
+    last_reviewed_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,word_id' }).select('word_id').single();
+  if (error) throw error;
+  if (!data) throw new Error('অগ্রগতি সংরক্ষণ নিশ্চিত করা যায়নি।');
+  const updated = current.map(word => word.id === id ? { ...word, isMemorized } : word);
+  saveWords(updated, userId);
   return updated;
 };
 
@@ -302,33 +237,21 @@ export const deleteWord = (id: string, userId?: string): Word[] => {
   return updated;
 };
 
-// Reset user memorized progress back to 0% (unmemorize all words)
+// A failed reset leaves the local progress intact. Verify the server result too:
+// RLS can reject DELETE by filtering all rows without returning an error.
 export const resetToInitial = async (userId?: string): Promise<Word[]> => {
-  const current = getStoredWords(userId);
-  const unmemorizedWords = current.map((item) => ({ ...item, isMemorized: false }));
-  saveWords(unmemorizedWords, userId);
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      if (userId) {
-        await supabase
-          .from('user_word_progress')
-          .delete()
-          .eq('user_id', userId);
-      }
-    } catch (err) {
-      console.error('Supabase reset progress error:', err);
-    }
-
-    try {
-      return await fetchWordsFromSupabase(userId);
-    } catch (fetchErr) {
-      console.warn('Fallback to local unmemorized words:', fetchErr);
-      return unmemorizedWords;
-    }
+  if (!isSupabaseConfigured || !supabase || !userId) {
+    throw new Error('রিসেট করতে লগইন ও ইন্টারনেট সংযোগ প্রয়োজন।');
   }
-
-  return unmemorizedWords;
+  const { error } = await supabase.from('user_word_progress').delete().eq('user_id', userId);
+  if (error) throw error;
+  const { count, error: verifyError } = await supabase.from('user_word_progress')
+    .select('*', { count: 'exact', head: true }).eq('user_id', userId);
+  if (verifyError) throw verifyError;
+  if (count !== 0) throw new Error('রিসেট সম্পূর্ণ হয়নি। আবার চেষ্টা করুন।');
+  const words = getStoredWords(userId).map(word => ({ ...word, isMemorized: false }));
+  saveWords(words, userId);
+  return words;
 };
 
 // Export to JSON

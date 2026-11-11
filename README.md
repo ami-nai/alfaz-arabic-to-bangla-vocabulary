@@ -44,7 +44,7 @@
 - **Three study views** — responsive **table**, **card grid**, and a flip-animated **flashcard practice** mode with shuffle.
 - **Memorization tracking** — mark words as "মুখস্থ" (memorized), filter by status, and watch your progress % in the header and stats cards.
 - **Per-user cloud sync** — memorization progress is stored per account via Supabase, with an offline-capable `localStorage` cache.
-- **Authentication** — email/password and **Google OAuth** via Supabase Auth.
+- **Authentication** — **Google OAuth** via Supabase Auth.
 - **Search & filters** — live search across Arabic and Bangla, plus memorized-status filtering.
 - **Infinite scroll** — large lists load incrementally as you scroll instead of rendering all at once.
 - **New-words sync** — detects newly added words and shows a banner so users can pull the latest dataset while preserving their progress.
@@ -183,7 +183,6 @@ Open <http://localhost:3000>.
         ├── WordCard.tsx         # Card grid view
         ├── FlashcardMode.tsx    # Flip-card practice mode
         ├── LoginScreen.tsx      # Sign in / sign up UI
-        ├── AuthModal.tsx        # (Legacy) auth modal
         └── NewWordsBanner.tsx   # New words sync notification
 ```
 
@@ -259,6 +258,13 @@ Add this domain to Supabase Auth's Site URL and redirect allowlist. The Express
 server and `/api/health` are only used for local development or Node hosting.
 AI enrichment has been removed; remove any old `GEMINI_API_KEY` from hosting
 settings and revoke that unused key in the provider dashboard.
+
+### Authentication configuration
+
+The app uses Google sign-in only. In Supabase Authentication provider settings,
+disable the Email provider and keep Google enabled. Leave new-user signup enabled
+so first-time Google users can create accounts. Removing forms from the app does
+not disable the Email provider in the hosted Supabase project.
 
 ### Database access control (required before release)
 

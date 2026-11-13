@@ -1,5 +1,5 @@
-import React from 'react';
-import { Search, X, Table, LayoutGrid, Brain, Filter } from 'lucide-react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Search, X, Table, LayoutGrid, Brain, Filter, ChevronDown, Check } from 'lucide-react';
 import { ViewMode, MemorizedFilter } from '../types/word';
 
 interface CategoryFilterProps {
@@ -25,6 +25,24 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
   selectedCategory,
   onCategoryChange,
 }) => {
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryPicker = useRef<HTMLDivElement>(null);
+  const categoryTrigger = useRef<HTMLButtonElement>(null);
+  const categoryOptionsId = useId();
+  const options = [{ name: 'all', label: 'সকল ক্যাটাগরি' }, ...categories.map(({ name, total }) => ({
+    name, label: `${name} (${total})`,
+  }))];
+  const categoryLabel = options.find(({ name }) => name === selectedCategory)?.label ?? options[0].label;
+
+  useEffect(() => {
+    if (!categoryOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!categoryPicker.current?.contains(event.target as Node)) setCategoryOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [categoryOpen]);
+
   return (
     <div className="bg-white p-4 rounded-2xl border border-[#e2d5c3] shadow-xs mb-6 space-y-4">
       
@@ -103,19 +121,55 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
           <span className="text-[#7c7166] hidden lg:inline-flex items-center shrink-0">
             <Filter className="w-3 h-3 mr-1" /> ক্যাটাগরি:
           </span>
-          <select
-            value={selectedCategory}
-            onChange={(e) => onCategoryChange(e.target.value)}
-            className="px-2.5 py-1.5 text-xs font-bangla font-medium text-[#3a332d] bg-[#f4ece1] border border-[#e2d5c3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40] transition-all cursor-pointer max-w-full"
-            aria-label="ক্যাটাগরি ফিল্টার"
+          <div
+            ref={categoryPicker}
+            className="relative min-w-0"
+            onBlur={(event) => {
+              if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setCategoryOpen(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && categoryOpen) {
+                event.preventDefault();
+                setCategoryOpen(false);
+                categoryTrigger.current?.focus();
+              }
+            }}
           >
-            <option value="all">সকল ক্যাটাগরি</option>
-            {categories.map((cat) => (
-              <option key={cat.name} value={cat.name}>
-                {cat.name} ({cat.total})
-              </option>
-            ))}
-          </select>
+            <button
+              ref={categoryTrigger}
+              type="button"
+              aria-expanded={categoryOpen}
+              aria-controls={categoryOptionsId}
+              aria-label={`ক্যাটাগরি ফিল্টার: ${categoryLabel}`}
+              onClick={() => setCategoryOpen(open => !open)}
+              className="flex max-w-full items-center gap-2 rounded-xl border border-[#e2d5c3] bg-[#f4ece1] px-3 py-2 font-medium text-[#3a332d] hover:bg-[#ede4d8] focus-visible:ring-2 focus-visible:ring-[#5A5A40]"
+            >
+              <span className="truncate">{categoryLabel}</span>
+              <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+            </button>
+            <div
+              id={categoryOptionsId}
+              hidden={!categoryOpen}
+              className="absolute left-0 top-full z-20 mt-1 max-h-64 w-max min-w-full max-w-[min(18rem,80vw)] overflow-y-auto rounded-xl border border-[#e2d5c3] bg-white p-1 shadow-lg"
+            >
+              {options.map(({ name, label }) => (
+                <button
+                  key={name}
+                  type="button"
+                  aria-pressed={selectedCategory === name}
+                  onClick={() => {
+                    onCategoryChange(name);
+                    setCategoryOpen(false);
+                    categoryTrigger.current?.focus();
+                  }}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-[#3a332d] hover:bg-[#f4ece1] focus-visible:bg-[#f4ece1] aria-pressed:font-bold"
+                >
+                  {label}
+                  {selectedCategory === name && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         
         {/* Memorized Status Filter Pills */}

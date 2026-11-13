@@ -34,6 +34,7 @@ function VocabularyApp() {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [memorizedFilter, setMemorizedFilter] = useState<MemorizedFilter>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedBab, setSelectedBab] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
 
@@ -111,6 +112,17 @@ function VocabularyApp() {
     [words]
   );
 
+  const showVerbColumns = isVerbCategory(selectedCategory);
+  const babOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const word of words) {
+      const bab = word.bab?.trim();
+      if (bab && word.category === selectedCategory) values.add(bab);
+    }
+    return [...values].sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [words, selectedCategory]);
+  const activeBab = showVerbColumns && babOptions.includes(selectedBab) ? selectedBab : '';
+
   // Search the full dictionary before slicing the visible page.
   const filteredWords = useMemo(() => {
     const matchesSearch = createSearchMatcher(searchQuery);
@@ -122,9 +134,11 @@ function VocabularyApp() {
       // Category Filter
       if (selectedCategory !== 'all' && (w.category || 'সাধারণ') !== selectedCategory) return false;
 
+      if (activeBab && w.bab?.trim() !== activeBab) return false;
+
       return matchesSearch(fields);
     }).map(({ word }) => word);
-  }, [searchableWords, memorizedFilter, selectedCategory, searchQuery]);
+  }, [searchableWords, memorizedFilter, selectedCategory, searchQuery, activeBab]);
 
   // Available categories with counts (for the filter dropdown)
   const categories = useMemo(() => {
@@ -138,7 +152,6 @@ function VocabularyApp() {
       .sort((a, b) => a.name.localeCompare(b.name, 'bn'));
   }, [words]);
 
-  const showVerbColumns = isVerbCategory(selectedCategory);
 
   // Pagination: render in chunks, load more on scroll
   const paginatedWords = useMemo(
@@ -151,7 +164,7 @@ function VocabularyApp() {
   // Reset the visible window whenever the search/filter changes
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, memorizedFilter, selectedCategory]);
+  }, [searchQuery, memorizedFilter, selectedCategory, activeBab]);
 
   // Infinite scroll sentinel
   useEffect(() => {
@@ -301,7 +314,13 @@ function VocabularyApp() {
           onMemorizedFilterChange={setMemorizedFilter}
           categories={categories}
           selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
+          onCategoryChange={(category) => {
+            if (category !== selectedCategory) setSelectedBab('');
+            setSelectedCategory(category);
+          }}
+          babOptions={showVerbColumns ? babOptions : undefined}
+          selectedBab={activeBab}
+          onBabChange={setSelectedBab}
         />
 
         {/* Active View: Table vs Cards vs Flashcards */}

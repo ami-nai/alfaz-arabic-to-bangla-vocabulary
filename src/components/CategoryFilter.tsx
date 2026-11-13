@@ -12,6 +12,83 @@ interface CategoryFilterProps {
   categories: { name: string; total: number }[];
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
+  babOptions?: string[];
+  selectedBab: string;
+  onBabChange: (bab: string) => void;
+}
+
+function FilterPicker({ label: pickerLabel, options, value, onChange }: {
+  label: string;
+  options: { name: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const picker = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const optionsId = useId();
+  const selectedLabel = options.find(({ name }) => name === value)?.label ?? options[0].label;
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!picker.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [open]);
+
+  return (
+    <div
+      ref={picker}
+      className="relative min-w-0"
+      onBlur={(event) => {
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && open) {
+          event.preventDefault();
+          setOpen(false);
+          trigger.current?.focus();
+        }
+      }}
+    >
+      <button
+        ref={trigger}
+        type="button"
+        aria-expanded={open}
+        aria-controls={optionsId}
+        aria-label={`${pickerLabel}: ${selectedLabel}`}
+        onClick={() => setOpen(open => !open)}
+        className="flex max-w-full items-center gap-2 rounded-xl border border-[#e2d5c3] bg-[#f4ece1] px-3 py-2 font-medium text-[#3a332d] hover:bg-[#ede4d8] focus-visible:ring-2 focus-visible:ring-[#5A5A40]"
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+      </button>
+      <div
+        id={optionsId}
+        hidden={!open}
+        className="absolute left-0 top-full z-20 mt-1 max-h-64 w-max min-w-full max-w-[min(18rem,80vw)] overflow-y-auto rounded-xl border border-[#e2d5c3] bg-white p-1 shadow-lg"
+      >
+        {options.map(({ name, label }) => (
+          <button
+            key={name}
+            type="button"
+            aria-pressed={value === name}
+            onClick={() => {
+              onChange(name);
+              setOpen(false);
+              trigger.current?.focus();
+            }}
+            className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-[#3a332d] hover:bg-[#f4ece1] focus-visible:bg-[#f4ece1] aria-pressed:font-bold"
+          >
+            {label}
+            {value === name && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export const CategoryFilter: React.FC<CategoryFilterProps> = ({
@@ -24,24 +101,13 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
   categories,
   selectedCategory,
   onCategoryChange,
+  babOptions,
+  selectedBab,
+  onBabChange,
 }) => {
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const categoryPicker = useRef<HTMLDivElement>(null);
-  const categoryTrigger = useRef<HTMLButtonElement>(null);
-  const categoryOptionsId = useId();
-  const options = [{ name: 'all', label: 'সকল ক্যাটাগরি' }, ...categories.map(({ name, total }) => ({
+  const categoryOptions = [{ name: 'all', label: 'সকল ক্যাটাগরি' }, ...categories.map(({ name, total }) => ({
     name, label: `${name} (${total})`,
   }))];
-  const categoryLabel = options.find(({ name }) => name === selectedCategory)?.label ?? options[0].label;
-
-  useEffect(() => {
-    if (!categoryOpen) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (!categoryPicker.current?.contains(event.target as Node)) setCategoryOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOutside);
-    return () => document.removeEventListener('pointerdown', closeOutside);
-  }, [categoryOpen]);
 
   return (
     <div className="bg-white p-4 rounded-2xl border border-[#e2d5c3] shadow-xs mb-6 space-y-4">
@@ -117,59 +183,19 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-[#f2e9de]">
 
         {/* Category Dropdown */}
-        <div className="flex items-center space-x-2 text-xs font-bangla">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-bangla">
           <span className="text-[#7c7166] hidden lg:inline-flex items-center shrink-0">
             <Filter className="w-3 h-3 mr-1" /> ক্যাটাগরি:
           </span>
-          <div
-            ref={categoryPicker}
-            className="relative min-w-0"
-            onBlur={(event) => {
-              if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setCategoryOpen(false);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape' && categoryOpen) {
-                event.preventDefault();
-                setCategoryOpen(false);
-                categoryTrigger.current?.focus();
-              }
-            }}
-          >
-            <button
-              ref={categoryTrigger}
-              type="button"
-              aria-expanded={categoryOpen}
-              aria-controls={categoryOptionsId}
-              aria-label={`ক্যাটাগরি ফিল্টার: ${categoryLabel}`}
-              onClick={() => setCategoryOpen(open => !open)}
-              className="flex max-w-full items-center gap-2 rounded-xl border border-[#e2d5c3] bg-[#f4ece1] px-3 py-2 font-medium text-[#3a332d] hover:bg-[#ede4d8] focus-visible:ring-2 focus-visible:ring-[#5A5A40]"
-            >
-              <span className="truncate">{categoryLabel}</span>
-              <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
-            </button>
-            <div
-              id={categoryOptionsId}
-              hidden={!categoryOpen}
-              className="absolute left-0 top-full z-20 mt-1 max-h-64 w-max min-w-full max-w-[min(18rem,80vw)] overflow-y-auto rounded-xl border border-[#e2d5c3] bg-white p-1 shadow-lg"
-            >
-              {options.map(({ name, label }) => (
-                <button
-                  key={name}
-                  type="button"
-                  aria-pressed={selectedCategory === name}
-                  onClick={() => {
-                    onCategoryChange(name);
-                    setCategoryOpen(false);
-                    categoryTrigger.current?.focus();
-                  }}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-[#3a332d] hover:bg-[#f4ece1] focus-visible:bg-[#f4ece1] aria-pressed:font-bold"
-                >
-                  {label}
-                  {selectedCategory === name && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
-                </button>
-              ))}
-            </div>
-          </div>
+          <FilterPicker label="ক্যাটাগরি ফিল্টার" options={categoryOptions} value={selectedCategory} onChange={onCategoryChange} />
+          {babOptions && (
+            <FilterPicker
+              label="বাব ফিল্টার"
+              options={[{ name: '', label: 'সকল বাব' }, ...babOptions.map(name => ({ name, label: name }))]}
+              value={selectedBab}
+              onChange={onBabChange}
+            />
+          )}
         </div>
         
         {/* Memorized Status Filter Pills */}
